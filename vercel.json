@@ -15,41 +15,18 @@
       "NODE_ENV": "production"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/health",
-      "dest": "/api/health.js",
-      "methods": ["GET"]
+      "source": "/api/sync/pages",
+      "destination": "/api/sync-pages"
     },
     {
-      "src": "/api/sync/pages",
-      "dest": "/api/sync-pages.js",
-      "methods": ["POST"]
+      "source": "/api/sync/collections",
+      "destination": "/api/sync-collections"
     },
     {
-      "src": "/api/sync/collections",
-      "dest": "/api/sync-collections.js",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/api/sync/full",
-      "dest": "/api/sync/full-sync.js",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/api/search",
-      "dest": "/api/search.js",
-      "methods": ["GET"]
-    },
-    {
-      "src": "/api/sync-static-pages-incremental",
-      "dest": "/api/sync-static-pages-incremental.js",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/api/sync-static-pages-batch",
-      "dest": "/api/sync-static-pages-batch.js",
-      "methods": ["POST"]
+      "source": "/api/sync/full",
+      "destination": "/api/sync/full-sync"
     }
   ],
   "headers": [
