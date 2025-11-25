@@ -1,0 +1,48 @@
+{
+  "name": "mizuho-algolia-search",
+  "version": "1.0.0",
+  "description": "Enterprise global search system for Mizuho website using Webflow CMS and Algolia",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "deploy": "vercel --prod",
+    "validate-env": "node scripts/validate-env.js",
+    "sync-cms": "node scripts/sync-cms-collections.js",
+    "sync-collection": "node scripts/sync-single-collection.js",
+    "sync-pages": "node scripts/sync-static-pages-only.js",
+    "clear-index": "node scripts/clear-algolia-index.js",
+    "clear-and-resync": "node scripts/clear-and-resync-pages.js",
+    "update-settings": "node scripts/update-algolia-settings.js",
+    "test-deletion-sync": "node scripts/test-deletion-sync.js",
+    "vercel-build": "echo 'No build step needed for serverless functions'",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "algoliasearch": "^4.25.2",
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
+    "node-html-parser": "^6.1.13",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "webflow",
+    "algolia",
+    "search",
+    "cms",
+    "vercel",
+    "serverless"
+  ],
+  "author": "Mizuho Development Team",
+  "license": "MIT"
+}

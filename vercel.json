@@ -1,0 +1,265 @@
+{
+  "version": 2,
+  "name": "mizuho-algolia-search",
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "@vercel/node",
+      "maxDuration": 300
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/health",
+      "dest": "/api/health.js",
+      "methods": ["GET"]
+    },
+    {
+      "src": "/api/sync/pages",
+      "dest": "/api/sync-pages.js",
+      "methods": ["POST"]
+    },
+    {
+      "src": "/api/sync/collections",
+      "dest": "/api/sync-collections.js",
+      "methods": ["POST"]
+    },
+    {
+      "src": "/api/sync/full",
+      "dest": "/api/sync/full-sync.js",
+      "methods": ["POST"]
+    },
+    {
+      "src": "/api/search",
+      "dest": "/api/search.js",
+      "methods": ["GET"]
+    },
+    {
+      "src": "/api/sync-static-pages-incremental",
+      "dest": "/api/sync-static-pages-incremental.js",
+      "methods": ["POST"]
+    },
+    {
+      "src": "/api/sync-static-pages-batch",
+      "dest": "/api/sync-static-pages-batch.js",
+      "methods": ["POST"]
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://www.mizuhogroup.com"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, x-api-key"
+        },
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=()"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/sync-static-pages-incremental",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sync-static-pages-incremental?forceFullSync=true",
+      "schedule": "0 2 1 * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=americas-people",
+      "schedule": "21 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=americas-events",
+      "schedule": "22 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=americas-insights",
+      "schedule": "23 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=americas-awards",
+      "schedule": "24 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=americas-news",
+      "schedule": "25 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=brazil-information",
+      "schedule": "26 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=beyond-the-obvious",
+      "schedule": "27 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=bank-news",
+      "schedule": "28 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=securities-news",
+      "schedule": "29 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=trust-and-banking-news",
+      "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=asia-pacific-insights",
+      "schedule": "31 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=asia-pacific-news",
+      "schedule": "32 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=malaysia-information",
+      "schedule": "33 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=hong-kong-information",
+      "schedule": "34 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=singapore-information",
+      "schedule": "35 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=taiwan-information",
+      "schedule": "36 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=gift-city-information",
+      "schedule": "37 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=japan-intl-cards",
+      "schedule": "38 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=emea-news",
+      "schedule": "39 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=emea-events",
+      "schedule": "40 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=emea-people",
+      "schedule": "41 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=emea-leaders",
+      "schedule": "42 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=france-information",
+      "schedule": "43 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=saudi-arabia-information",
+      "schedule": "44 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=russia-information",
+      "schedule": "45 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=global-news",
+      "schedule": "46 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=global-news-releases",
+      "schedule": "47 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=mizuho-global-services",
+      "schedule": "48 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=news-and-announcements",
+      "schedule": "49 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=digital-articles",
+      "schedule": "50 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=financial-statements-data",
+      "schedule": "51 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=basel-capital-data",
+      "schedule": "52 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=liquidity-data",
+      "schedule": "53 * * * *"
+    },
+    {
+      "path": "/api/sync-collections?collectionId=annual-data",
+      "schedule": "54 * * * *"
+    }
+  ]
+}
