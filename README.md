@@ -10,6 +10,10 @@ Enterprise-grade search indexing system that synchronizes content from Webflow C
 - [Getting Started](#getting-started)
 - [Local Development](#local-development)
 - [Deployment](#deployment)
+- [Updating Serverless Functions](#updating-serverless-functions)
+- [Updating Environment Variables in Production](#updating-environment-variables-in-production)
+- [Updating Vercel Configuration](#updating-vercel-configuration)
+- [Rollback & Emergency Procedures](#rollback--emergency-procedures)
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
 - [Regional Configuration](#regional-configuration)
@@ -20,6 +24,7 @@ Enterprise-grade search indexing system that synchronizes content from Webflow C
 - [Idempotency & Concurrency Protection](#idempotency--concurrency-protection)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [Client Guide - Quick Reference](#client-guide---quick-reference)
 
 ---
 
@@ -428,6 +433,675 @@ The project includes a `vercel.json` configuration file with serverless function
    - Go to Vercel Dashboard → Your Project → **Logs**
    - View real-time function executions
    - Filter by "cron" to see automated syncs
+
+---
+
+## Updating Serverless Functions
+
+### Modifying Existing Functions
+
+When you need to modify or enhance existing serverless functions (e.g., adding a new feature to the search endpoint):
+
+1. **Edit Function Code**
+   - Serverless functions are located in the `/api/` directory
+   - Make your changes to the desired function (e.g., [api/search.js](api/search.js))
+   - Example: Adding a new query parameter or filter
+
+2. **Test Locally**
+   ```bash
+   # Start local development server
+   npm run dev
+
+   # Test your changes
+   curl "http://localhost:3000/api/search?q=test&region=americas"
+   ```
+
+3. **Deploy Changes**
+
+   **Option A: Auto-deploy via GitHub (Recommended)**
+   ```bash
+   git add api/search.js
+   git commit -m "feat: add new filter to search endpoint"
+   git push origin main
+   # Vercel automatically deploys on push to main branch
+   ```
+
+   **Option B: Manual deploy via CLI**
+   ```bash
+   vercel --prod
+   ```
+
+4. **Verify Deployment**
+   ```bash
+   # Test production endpoint
+   curl "https://your-project.vercel.app/api/search?q=test"
+
+   # Check deployment status
+   vercel ls
+   ```
+
+### Adding New Serverless Functions
+
+To create a new API endpoint:
+
+1. **Create Function File**
+   ```bash
+   # Example: Create a new stats endpoint
+   touch api/stats.js
+   ```
+
+2. **Write Function Code**
+   ```javascript
+   // api/stats.js
+   export default async function handler(req, res) {
+     try {
+       // Your logic here
+       const stats = {
+         totalIndexed: 4382,
+         lastSync: new Date().toISOString()
+       };
+
+       res.status(200).json({
+         success: true,
+         data: stats
+       });
+     } catch (error) {
+       res.status(500).json({
+         success: false,
+         error: error.message
+       });
+     }
+   }
+   ```
+
+3. **Test Locally**
+   ```bash
+   npm run dev
+   curl "http://localhost:3000/api/stats"
+   ```
+
+4. **Deploy** (same process as modifying existing functions)
+
+### Important Notes
+
+- ⚠️ **All changes to `/api/` directory require redeployment** to take effect in production
+- Vercel auto-detects new files in `/api/` as serverless functions
+- Function timeout is configured in `vercel.json` (default: 300 seconds)
+- Use `npm run dev` to test with exact production behavior locally
+- Test authentication and CORS headers if your endpoint requires them
+- Monitor function logs after deployment: `vercel logs --follow`
+
+### Common Function Modifications
+
+**Adding a New Query Parameter:**
+```javascript
+// api/search.js
+const { q, region, newParam } = req.query;
+// Implement logic using newParam
+```
+
+**Adding Request Body Validation:**
+```javascript
+import { z } from 'zod';
+
+const schema = z.object({
+  query: z.string().min(1),
+  limit: z.number().optional()
+});
+
+const validated = schema.parse(req.body);
+```
+
+**Adding Authentication:**
+```javascript
+import { requireAuth } from '../lib/security/auth.js';
+
+// Check authentication
+const authResult = await requireAuth(req);
+if (!authResult.authenticated) {
+  return res.status(401).json({ error: 'Unauthorized' });
+}
+```
+
+---
+
+## Updating Environment Variables in Production
+
+### Via Vercel Dashboard (Recommended)
+
+When you need to update API keys, add new collections, or change configuration:
+
+1. **Navigate to Project Settings**
+   - Go to [vercel.com](https://vercel.com)
+   - Select your project
+   - Click **Settings** → **Environment Variables**
+
+2. **Update or Add Variable**
+   - Find the variable you want to update (e.g., `WEBFLOW_API_TOKEN`)
+   - Click **Edit** or delete and add new
+   - Enter the new value
+   - Select which environments need the variable:
+     - ✅ Production
+     - ✅ Preview
+     - ✅ Development
+
+3. **Redeploy to Apply Changes**
+
+   **Option A: Via CLI**
+   ```bash
+   # Trigger a new deployment to pick up environment variable changes
+   vercel --prod
+   ```
+
+   **Option B: Via Dashboard**
+   - Go to **Deployments** tab
+   - Click **⋯** menu on the latest deployment
+   - Click **Redeploy**
+
+### Common Environment Variable Updates
+
+#### Rotating API Keys (Security Best Practice)
+
+**Scenario: Webflow API Token Compromised**
+
+```bash
+# Step 1: Generate new token in Webflow dashboard
+# Webflow → Settings → Integrations → API Access → Generate Token
+
+# Step 2: Update in Vercel dashboard
+# Variable: WEBFLOW_API_TOKEN
+# New Value: <new_token_here>
+
+# Step 3: Redeploy
+vercel --prod
+
+# Step 4: Verify
+curl https://your-project.vercel.app/api/health
+```
+
+**Scenario: Rotating Algolia API Key**
+
+```bash
+# Step 1: Generate new Admin API key in Algolia dashboard
+# Algolia → API Keys → All API Keys → Generate API Key
+
+# Step 2: Update in Vercel dashboard
+# Variable: ALGOLIA_API_KEY
+# New Value: <new_admin_key_here>
+
+# Step 3: Redeploy
+vercel --prod
+
+# Step 4: Test search functionality
+curl "https://your-project.vercel.app/api/search?q=test"
+```
+
+#### Adding a New CMS Collection
+
+**Scenario: Adding "EMEA Awards" Collection**
+
+```bash
+# Step 1: Get collection ID from Webflow CMS
+# Webflow → CMS → [Collection] → Settings → Collection ID
+
+# Step 2: Add environment variable in Vercel dashboard
+# Variable Name: CMS_EMEA_AWARDS
+# Value: <collection_id_from_webflow>
+# Environments: Production, Preview, Development
+
+# Step 3: Update lib/constants/collections.js (in code)
+# See "Contributing" section for details
+
+# Step 4: Update .env.example (for documentation)
+
+# Step 5: Commit and push changes
+git add lib/constants/collections.js .env.example
+git commit -m "feat: add EMEA Awards collection"
+git push origin main
+# Vercel auto-deploys
+```
+
+#### Changing Configuration Values
+
+```bash
+# Example: Increase sync batch size for better performance
+# Variable: SYNC_BATCH_SIZE
+# Old Value: 100
+# New Value: 200
+
+# Example: Change log level for debugging
+# Variable: LOG_LEVEL
+# Values: error, warn, info, debug
+```
+
+### Important Notes
+
+- ⚠️ **Environment variable changes REQUIRE redeployment** to take effect
+- Always test changes in **Preview** environment first before production
+- **Never commit `.env` file to git** (it contains secrets)
+- Keep `.env.example` updated when adding new variables
+- Use Vercel's environment variable encryption (automatically enabled)
+- Consider impact on cron jobs - they use production environment variables
+
+### Local Environment Setup
+
+For local development, create/update your `.env` file:
+
+```bash
+# Copy environment variables template
+cp .env.example .env
+
+# Edit with your credentials
+nano .env
+
+# Validate configuration
+npm run validate-env
+```
+
+---
+
+## Updating Vercel Configuration
+
+The `vercel.json` file controls critical deployment settings. Any changes require redeployment.
+
+### What vercel.json Controls
+
+- ⚙️ Serverless function settings (timeout, memory, runtime)
+- ⏰ Cron job schedules
+- 🔒 Security headers and CORS
+- 🔀 API rewrites and redirects
+- 🌍 Environment-specific configuration
+
+### Modifying Cron Job Schedules
+
+**Example: Change Americas sync from 4:00 AM to 5:00 AM UTC**
+
+1. **Edit `vercel.json`:**
+   ```json
+   {
+     "crons": [
+       {
+         "path": "/api/sync/full?region=americas",
+         "schedule": "0 5 * * *"  // Changed from "0 4 * * *"
+       }
+     ]
+   }
+   ```
+
+2. **Commit and Deploy:**
+   ```bash
+   git add vercel.json
+   git commit -m "chore: update Americas sync schedule to 5 AM UTC"
+   git push origin main
+   ```
+
+3. **Verify in Vercel Dashboard:**
+   - Go to your Vercel project
+   - Click **Cron Jobs** tab
+   - Confirm the new schedule appears
+
+**Cron Schedule Syntax:**
+```
+ ┌───────────── minute (0 - 59)
+ │ ┌───────────── hour (0 - 23)
+ │ │ ┌───────────── day of month (1 - 31)
+ │ │ │ ┌───────────── month (1 - 12)
+ │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday to Saturday)
+ │ │ │ │ │
+ * * * * *
+
+Examples:
+"0 4 * * *"   - Every day at 4:00 AM UTC
+"0 */6 * * *" - Every 6 hours
+"0 2 1 * *"   - 2:00 AM on the 1st of every month
+```
+
+Use [crontab.guru](https://crontab.guru) for help with cron syntax.
+
+### Adding or Removing Cron Jobs
+
+**Adding a New Cron Job:**
+```json
+{
+  "crons": [
+    // ... existing cron jobs ...
+    {
+      "path": "/api/new-sync-endpoint",
+      "schedule": "0 12 * * *"  // Daily at noon UTC
+    }
+  ]
+}
+```
+
+**Removing a Cron Job:**
+Simply delete the entire cron job object from the array.
+
+**⚠️ Important:**
+- Cron jobs require **Vercel Pro Plan** or higher
+- Maximum 20 cron jobs per project on Pro plan
+- Each cron job triggers the specified endpoint with `x-vercel-cron` header
+
+### Modifying Function Timeout
+
+**Example: Increase timeout for large sync operations**
+
+```json
+{
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 600  // 10 minutes (increased from 300s)
+    }
+  }
+}
+```
+
+**Timeout Limits by Plan:**
+- **Hobby:** 10 seconds (hobby accounts)
+- **Pro:** 60 seconds (default), up to 900 seconds (15 min) max
+- **Enterprise:** Custom limits available
+
+⚠️ **Note:** Higher timeouts may incur additional costs on Pro plan.
+
+### Updating CORS and Security Headers
+
+**Add New Allowed Origin:**
+```json
+{
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://newdomain.com"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Multiple Origins:**
+```bash
+# Use environment variable instead (recommended)
+# In Vercel dashboard, set:
+ALLOWED_ORIGINS=https://www.mizuhogroup.com,https://staging.mizuhogroup.com
+```
+
+### Important Notes
+
+- ✅ All `vercel.json` changes require **git commit + push**
+- ✅ Changes take effect on **next deployment** (automatic via GitHub integration)
+- ✅ Test in **Preview** environment first (push to feature branch)
+- ✅ Monitor first cron execution after schedule changes
+- ❌ Don't store secrets in `vercel.json` (use environment variables)
+
+### Testing Configuration Changes Locally
+
+```bash
+# Test locally with Vercel dev server
+npm run dev
+
+# Vercel CLI respects vercel.json settings
+# Test cron endpoints manually:
+curl -X POST "http://localhost:3000/api/sync/full?region=americas" \
+  -H "x-api-key: YOUR_API_SECRET_KEY"
+```
+
+---
+
+## Rollback & Emergency Procedures
+
+### Rolling Back a Deployment
+
+When a deployment introduces issues, you can quickly rollback to a previous version.
+
+#### Via Vercel Dashboard (Fastest - ~30 seconds)
+
+1. **Navigate to Deployments**
+   - Go to [vercel.com](https://vercel.com)
+   - Select your project
+   - Click **Deployments** tab
+
+2. **Find the Last Known Good Deployment**
+   - Look for the deployment before the problematic one
+   - Check timestamp and git commit message
+   - Verify deployment status shows "Ready"
+
+3. **Promote to Production**
+   - Click **⋯** (three dots) menu on the deployment
+   - Select **"Promote to Production"**
+   - Confirm the promotion
+
+**✅ Rollback complete in ~30 seconds**
+
+#### Via Vercel CLI
+
+```bash
+# List recent deployments
+vercel ls
+
+# Output example:
+# Age  Deployment                        Status
+# 2m   my-project-abc123.vercel.app     Ready
+# 1h   my-project-def456.vercel.app     Ready  (Production)
+# 3h   my-project-ghi789.vercel.app     Ready
+
+# Promote specific deployment to production
+vercel promote my-project-abc123.vercel.app
+```
+
+### Monitoring for Failed Deployments
+
+#### Real-time Logs
+
+```bash
+# Watch all function executions
+vercel logs --follow
+
+# Filter for errors
+vercel logs --follow | grep ERROR
+vercel logs --follow | grep WARN
+
+# Filter for specific endpoint
+vercel logs --follow | grep "api/search"
+
+# Filter for cron job executions
+vercel logs --follow | grep "x-vercel-cron"
+
+# View specific cron job
+vercel logs --follow | grep "sync/full?region=americas"
+```
+
+#### Check Deployment Status
+
+```bash
+# Via CLI - List recent deployments
+vercel ls
+
+# Via API - Get deployment details
+curl "https://api.vercel.com/v6/deployments?projectId=YOUR_PROJECT_ID" \
+  -H "Authorization: Bearer YOUR_VERCEL_TOKEN"
+```
+
+#### Vercel Dashboard Monitoring
+
+1. **Deployment Status:**
+   - Deployments tab shows all deployments
+   - Green checkmark = successful
+   - Red X = failed
+
+2. **Function Logs:**
+   - Click on any deployment
+   - View **Runtime Logs** tab
+   - Filter by severity (Info, Warning, Error)
+
+3. **Cron Job Status:**
+   - **Cron Jobs** tab shows execution history
+   - See last execution time and status
+
+### Emergency Scenarios & Solutions
+
+#### Emergency: Cron Job Failing
+
+**Scenario:** Daily Americas sync at 4:00 AM UTC failed
+
+**Investigation Steps:**
+
+1. **Check Vercel Logs**
+   ```bash
+   vercel logs | grep "sync/full?region=americas" | tail -100
+   ```
+
+2. **Check Function Health**
+   ```bash
+   curl https://your-project.vercel.app/api/health
+   ```
+
+   **Expected Response:**
+   ```json
+   {
+     "success": true,
+     "data": {
+       "status": "healthy",
+       "connections": {
+         "webflow": true,
+         "algolia": true
+       }
+     }
+   }
+   ```
+
+3. **Check External Service Status**
+   - Webflow API: Visit [status.webflow.com](https://status.webflow.com)
+   - Algolia: Visit [status.algolia.com](https://status.algolia.com)
+
+4. **Check Environment Variables**
+   - Verify `WEBFLOW_API_TOKEN` is valid
+   - Verify `ALGOLIA_API_KEY` is valid
+   - Check for recent environment variable changes
+
+5. **Manual Trigger (if needed)**
+   ```bash
+   # Trigger the failed sync manually
+   curl -X POST https://your-project.vercel.app/api/sync/full?region=americas \
+     -H "x-api-key: YOUR_API_SECRET_KEY"
+   ```
+
+#### Emergency: Search API Not Working
+
+**Quick Diagnostics:**
+
+1. **Health Check**
+   ```bash
+   curl https://your-project.vercel.app/api/health
+   ```
+
+2. **Test Search Directly**
+   ```bash
+   curl "https://your-project.vercel.app/api/search?q=test"
+   ```
+
+3. **Check Algolia Index**
+   - Log into Algolia dashboard
+   - Navigate to "Search" → "mizuho_content" index
+   - Verify record count (~4,382+ items)
+   - Test search in Algolia's search preview
+
+4. **Check API Key Validity**
+   - Verify `ALGOLIA_SEARCH_KEY` environment variable
+   - Check key permissions in Algolia dashboard
+   - Regenerate if expired
+
+5. **Check CORS Issues (if frontend)**
+   - Verify `ALLOWED_ORIGINS` includes your domain
+   - Check browser console for CORS errors
+
+#### Emergency: Out of Algolia Operations Quota
+
+**Symptoms:** Sync fails with "quota exceeded" or rate limit errors
+
+**Immediate Actions:**
+
+```bash
+# 1. Check current Algolia usage
+# Log into Algolia dashboard → Analytics → Operations
+
+# 2. Temporarily disable non-critical cron jobs
+# Edit vercel.json and comment out some cron jobs
+# Prioritize: Keep Americas, EMEA, Asia Pacific
+# Disable: Less critical regions temporarily
+
+# 3. Use incremental sync instead of full sync
+curl -X POST https://your-project.vercel.app/api/sync-static-pages-incremental
+
+# 4. Upgrade Algolia plan if consistently hitting limits
+```
+
+**Prevention:**
+- Monitor Algolia usage regularly
+- Use incremental syncs when possible
+- Optimize sync frequency based on content update patterns
+
+#### Emergency: Deployment Failed
+
+**Scenario:** Git push triggered deployment, but it failed
+
+**Investigation:**
+
+1. **Check Build Logs**
+   - Go to Vercel Dashboard → Deployments
+   - Click on failed deployment
+   - Review **Build Logs** tab
+
+2. **Common Failure Causes:**
+   - **Syntax errors** in code
+   - **Missing environment variables**
+   - **Invalid `vercel.json` configuration**
+   - **Dependency installation failures**
+
+3. **Quick Fix:**
+   ```bash
+   # Rollback to last working deployment
+   vercel ls
+   vercel promote <last-working-deployment-url>
+
+   # Fix the issue locally
+   npm run lint
+   npm run dev  # Test locally
+
+   # Redeploy
+   git add .
+   git commit -m "fix: resolve deployment issue"
+   git push origin main
+   ```
+
+### Support Contacts
+
+**For Critical Issues:**
+- **Vercel Support:** [vercel.com/support](https://vercel.com/support)
+- **Webflow Support:** [webflow.com/support](https://webflow.com/support)
+- **Algolia Support:** [algolia.com/support](https://algolia.com/support)
+
+**Internal Team:**
+- Check your team's internal documentation for on-call contacts
+- Review incident response procedures
+
+### Health Check Monitoring
+
+**Set Up External Monitoring (Recommended):**
+
+Use services like:
+- **UptimeRobot** ([uptimerobot.com](https://uptimerobot.com))
+- **Pingdom** ([pingdom.com](https://pingdom.com))
+- **StatusCake** ([statuscake.com](https://statuscake.com))
+
+**Monitor:**
+```
+URL: https://your-project.vercel.app/api/health
+Check every: 5 minutes
+Alert if: Status != 200 OR response.status != "healthy"
+```
 
 ---
 
@@ -1545,13 +2219,305 @@ Then run sync to see detailed logs.
 - [ ] Lint passes (`npm run lint`)
 - [ ] No sensitive data in commits
 
+### Common Development Scenarios
+
+#### Scenario 1: Adding a New CMS Collection
+
+**Example: Adding "EMEA Awards" Collection**
+
+**Steps:**
+
+1. **Get Collection ID from Webflow**
+   - Go to Webflow → CMS → [Collection] → Settings
+   - Copy the Collection ID
+
+2. **Add to Local `.env`:**
+   ```env
+   CMS_EMEA_AWARDS=67cb23eaf0c6c4d4080e059b
+   ```
+
+3. **Update `lib/constants/collections.js`:**
+   ```javascript
+   export const CMS_COLLECTIONS = {
+     // ... existing collections ...
+
+     EMEA_AWARDS: {
+       id: 'emea-awards',
+       name: 'EMEA Awards',
+       region: 'europe-middle-east-africa',
+       envKey: 'CMS_EMEA_AWARDS',
+       fields: {
+         name: 'name',
+         slug: 'slug',
+         summary: 'summary',
+         date: 'date',
+         // Add other field mappings as needed
+       }
+     }
+   };
+   ```
+
+4. **Update `.env.example`:**
+   ```env
+   # EMEA Region
+   CMS_EMEA_AWARDS=your_collection_id_here
+   ```
+
+5. **Test Locally:**
+   ```bash
+   # Validate environment
+   npm run validate-env
+
+   # Test sync
+   node scripts/sync-single-collection.js emea-awards
+   ```
+
+6. **Update Environment Variables in Vercel:**
+   - Vercel Dashboard → Settings → Environment Variables
+   - Add `CMS_EMEA_AWARDS` with the collection ID
+   - Add for Production, Preview, and Development
+
+7. **Commit and Deploy:**
+   ```bash
+   git add lib/constants/collections.js .env.example
+   git commit -m "feat: add EMEA Awards collection support"
+   git push origin main
+   ```
+
+#### Scenario 2: Modifying Field Mappings
+
+**Example: Add "author" field to Americas News**
+
+**Steps:**
+
+1. **Edit [lib/constants/collections.js](lib/constants/collections.js:112):**
+   ```javascript
+   AMERICAS_NEWS: {
+     id: 'americas-news',
+     name: 'Americas News',
+     region: 'americas',
+     envKey: 'CMS_AMERICAS_NEWS',
+     fields: {
+       name: 'name',
+       slug: 'slug',
+       summary: 'summary',
+       date: 'date',
+       author: 'author',  // ← Add new field mapping
+       // ... other fields
+     }
+   }
+   ```
+
+2. **Update Transformer Logic (if needed):**
+   - Edit [lib/transformers/cms-transformer.js](lib/transformers/cms-transformer.js) if custom processing is required
+
+3. **Test Transformation:**
+   ```bash
+   # Sync the collection and verify output
+   node scripts/sync-single-collection.js americas-news
+   ```
+
+4. **Verify in Algolia Dashboard:**
+   - Go to Algolia → Search → mizuho_content
+   - Check that new field appears in records
+   - Update searchable attributes if needed:
+     ```bash
+     npm run update-settings
+     ```
+
+5. **Deploy Changes:**
+   ```bash
+   git add lib/constants/collections.js
+   git commit -m "feat: add author field to Americas News"
+   git push origin main
+   ```
+
+#### Scenario 3: Changing Regional Assignment
+
+**For CMS Collections:**
+
+Edit the `region` field in [lib/constants/collections.js](lib/constants/collections.js):
+
+```javascript
+EXAMPLE_COLLECTION: {
+  id: 'example-collection',
+  name: 'Example Collection',
+  region: 'asia-pacific',  // ← Change region assignment
+  // ...
+}
+```
+
+**For Static Pages:**
+
+Edit detection logic in [lib/webflow/static-fetcher.js](lib/webflow/static-fetcher.js#L550-L589):
+
+```javascript
+// Folder-based detection
+const folderRegionMap = {
+  [FOLDER_AMERICAS]: 'americas',
+  [FOLDER_EMEA]: 'europe-middle-east-africa',
+  // ... add new folder mappings
+};
+
+// Keyword-based detection
+if (slug.includes('new-region-keyword')) {
+  return 'new-region';
+}
+```
+
+#### Scenario 4: Updating Algolia Index Settings
+
+**Example: Add New Searchable Attributes**
+
+**Steps:**
+
+1. **Edit [lib/algolia/client.js](lib/algolia/client.js) or create migration script:**
+   ```javascript
+   // scripts/update-algolia-settings.js
+   const settings = {
+     searchableAttributes: [
+       'title',
+       'summary',
+       'content',
+       'author',  // ← Add new searchable field
+       'categories'
+     ],
+     attributesForFaceting: [
+       'filterOnly(region)',
+       'filterOnly(type)',
+       'author'  // ← Add as facet
+     ]
+   };
+
+   await index.setSettings(settings);
+   ```
+
+2. **Run Update Script:**
+   ```bash
+   npm run update-settings
+   ```
+
+3. **Verify in Algolia Dashboard:**
+   - Algolia → Indices → mizuho_content → Configuration
+   - Check that settings were applied
+
+4. **Test Search:**
+   ```bash
+   # Test faceted search
+   curl "https://your-project.vercel.app/api/search?q=test&facetFilters=author:John%20Doe"
+   ```
+
+5. **Deploy if Code Changes Made:**
+   ```bash
+   git add scripts/update-algolia-settings.js
+   git commit -m "feat: add author as searchable attribute and facet"
+   git push origin main
+   ```
+
+#### Scenario 5: Adding a New API Endpoint
+
+**Example: Create `/api/stats` endpoint**
+
+**Steps:**
+
+1. **Create API File:**
+   ```bash
+   touch api/stats.js
+   ```
+
+2. **Write Endpoint Logic:**
+   ```javascript
+   // api/stats.js
+   import { getAlgoliaClient } from '../lib/algolia/client.js';
+
+   export default async function handler(req, res) {
+     try {
+       const index = getAlgoliaClient().initIndex('mizuho_content');
+
+       // Get index statistics
+       const { nbHits } = await index.search('', { hitsPerPage: 0 });
+
+       res.status(200).json({
+         success: true,
+         data: {
+           totalIndexed: nbHits,
+           lastUpdated: new Date().toISOString()
+         }
+       });
+     } catch (error) {
+       res.status(500).json({
+         success: false,
+         error: error.message
+       });
+     }
+   }
+   ```
+
+3. **Test Locally:**
+   ```bash
+   npm run dev
+   curl "http://localhost:3000/api/stats"
+   ```
+
+4. **Add to Documentation:**
+   - Update API Reference section in README
+   - Add to Table of Contents if needed
+
+5. **Deploy:**
+   ```bash
+   git add api/stats.js README.md
+   git commit -m "feat: add stats API endpoint"
+   git push origin main
+   ```
+
+#### Scenario 6: Debugging a Sync Issue
+
+**Problem: Collection not syncing properly**
+
+**Debugging Steps:**
+
+1. **Enable Debug Logging:**
+   ```bash
+   # In .env
+   LOG_LEVEL=debug
+   ```
+
+2. **Run Sync Locally:**
+   ```bash
+   node scripts/sync-single-collection.js problematic-collection
+   ```
+
+3. **Check Common Issues:**
+   - **Environment variable missing:** `npm run validate-env`
+   - **Collection ID incorrect:** Verify in Webflow CMS settings
+   - **Field mapping errors:** Check console output for transformation errors
+   - **API rate limits:** Check for 429 errors in logs
+
+4. **Test Webflow API Directly:**
+   ```bash
+   curl "https://api.webflow.com/v2/collections/COLLECTION_ID/items" \
+     -H "Authorization: Bearer YOUR_WEBFLOW_TOKEN"
+   ```
+
+5. **Test Algolia Indexing:**
+   ```bash
+   # Check if items are being indexed
+   # Log into Algolia dashboard → Indices → mizuho_content
+   # Search for specific items
+   ```
+
+6. **Fix and Re-test:**
+   ```bash
+   # After fixing the issue
+   node scripts/sync-single-collection.js problematic-collection
+   ```
+
 ---
 
 ## Additional Resources
 
 ### Documentation
 
-- **Regional Setup:** See [`REGIONAL_CATEGORIZATION.md`](REGIONAL_CATEGORIZATION.md)
 - **Webflow API Docs:** [https://developers.webflow.com/](https://developers.webflow.com/)
 - **Algolia Docs:** [https://www.algolia.com/doc/](https://www.algolia.com/doc/)
 - **Vercel Docs:** [https://vercel.com/docs](https://vercel.com/docs)
@@ -1571,6 +2537,200 @@ MIT License - Mizuho Development Team
 
 ---
 
+## Client Guide - Quick Reference
+
+### For Non-Technical Users
+
+This section provides quick answers to common questions for content managers and non-technical stakeholders.
+
+#### "I published new content in Webflow, when will it appear in search?"
+
+**Automatic Synchronization (Recommended):**
+
+Content syncs automatically every day via scheduled cron jobs. Wait time depends on your region:
+
+| Region | Sync Time (UTC) | Wait Time |
+|--------|----------------|-----------|
+| **Static Pages** | 2:00 AM daily | Up to 24 hours |
+| **Americas** | 4:00 AM daily | Up to 24 hours |
+| **EMEA** | 5:00 AM daily | Up to 24 hours |
+| **Asia Pacific** | 6:00 AM daily | Up to 24 hours |
+| **Mizuho Bank** | 7:00 AM daily | Up to 24 hours |
+| **Mizuho Securities** | 8:00 AM daily | Up to 24 hours |
+| **Mizuho Trust & Banking** | 9:00 AM daily | Up to 24 hours |
+| **Japan** | 10:00 AM daily | Up to 24 hours |
+| **Worldwide** | 11:00 AM daily | Up to 24 hours |
+
+**Manual Sync (Immediate):**
+
+If you need content to be searchable immediately, contact your development team to run:
+```bash
+npm run sync-cms
+```
+
+#### "How do I verify my content is searchable?"
+
+**Method 1: Via Search API**
+
+Test the search endpoint directly in your browser:
+```
+https://your-project.vercel.app/api/search?q=<your-content-title>&region=americas
+```
+
+Replace:
+- `<your-content-title>` with keywords from your content
+- `region=americas` with your specific region
+
+**Method 2: Via Algolia Dashboard**
+
+1. Log into [algolia.com](https://algolia.com)
+2. Navigate to **Search** → **mizuho_content** index
+3. Use the search preview to test queries
+4. Check the total number of records matches expectations
+
+**Expected Result:**
+Your content should appear in search results with:
+- Title
+- Summary
+- Region
+- Publication date
+- Categories/tags
+
+#### "Content isn't showing up in search, what should I check?"
+
+**Troubleshooting Checklist:**
+
+1. **✅ Is content published in Webflow?**
+   - Content must be **Published**, not **Draft**
+   - Check Webflow CMS → [Collection] → Status
+
+2. **✅ Has the automatic sync run yet?**
+   - Check the sync schedule table above
+   - Wait up to 24 hours for automatic sync
+
+3. **✅ Are you searching in the correct region?**
+   - Try searching with `region=worldwide` to check all regions
+   - Verify your content is assigned to the correct region
+
+4. **✅ Is the search query correct?**
+   - Check for typos in keywords
+   - Try partial matches (e.g., "sustain" instead of "sustainability")
+
+5. **✅ Contact developer for manual sync**
+   - If urgent, ask developer to trigger manual sync
+   - Provide collection name and item details
+
+#### "How often does content sync to search?"
+
+**Sync Frequency:**
+- **CMS Collections:** Once per day (based on region schedule)
+- **Static Pages:** Daily incremental sync at 2:00 AM UTC
+- **Full Sync:** Monthly on the 1st at 3:00 AM UTC (static pages only)
+
+**What Triggers a Sync:**
+- **Automatic:** Scheduled cron jobs run daily
+- **Manual:** Developer-triggered sync via command line or API
+
+**What Gets Synced:**
+- ✅ New content published in Webflow
+- ✅ Updates to existing content
+- ✅ Deleted content (removed from index)
+- ✅ Metadata changes (title, summary, categories)
+
+#### "Can I trigger a sync myself?"
+
+**No - Requires Developer Access**
+
+Manual syncs require:
+- Command line access to the project
+- Vercel API credentials
+- Understanding of sync scripts
+
+**What You Can Do:**
+1. **Wait for automatic sync** (up to 24 hours)
+2. **Contact your development team** to request manual sync
+3. **Provide details:**
+   - Collection name (e.g., "Americas News")
+   - Item title or ID
+   - Urgency level
+
+#### "Who do I contact for help?"
+
+**For Content/Publishing Issues:**
+- **Webflow Support:** [webflow.com/support](https://webflow.com/support)
+- Contact for issues with Webflow CMS, publishing, or content management
+
+**For Search Issues:**
+- **Your Development Team:** [Contact your internal team]
+- Contact for search not working, content not appearing, or technical issues
+
+**For Urgent Production Issues:**
+- **Vercel Support:** [vercel.com/support](https://vercel.com/support) (if deployment/hosting issues)
+- **Algolia Support:** [algolia.com/support](https://algolia.com/support) (if search service issues)
+
+**When Contacting Support, Provide:**
+- Clear description of the issue
+- Steps to reproduce the problem
+- Expected vs. actual behavior
+- Screenshots if applicable
+- Time when issue started
+
+#### "What content gets indexed for search?"
+
+**34 CMS Collections:**
+- Americas: People, Events, Insights, Awards, News, Brazil Information
+- EMEA: News, Events, People, Leaders, France/Saudi Arabia/Russia Information
+- Asia Pacific: Insights, News, Country Information (Malaysia, Hong Kong, Singapore, Taiwan, Gift City)
+- Business Units: Bank News, Securities News, Trust & Banking News
+- Japan: International Cards
+- Worldwide: Beyond The Obvious, Global News, Mizuho Global Services, Digital Articles, Financial Data
+
+**~651 Static Pages:**
+- All published Webflow pages
+- Excludes: 404 pages, admin pages, test pages, utility pages
+
+**Total Searchable Items:** 4,382+ and growing
+
+#### "How can I improve search results for my content?"
+
+**Best Practices:**
+
+1. **Write Clear Titles**
+   - Use descriptive, keyword-rich titles
+   - Include main topic/subject
+   - Avoid generic titles like "Article 1"
+
+2. **Craft Good Summaries**
+   - Write 1-2 sentence summaries
+   - Include key terms users might search for
+   - Avoid leaving summary field empty
+
+3. **Use Categories/Tags**
+   - Assign relevant categories
+   - Use consistent taxonomy
+   - Tag with industry types, areas of interest
+
+4. **Set Correct Publication Date**
+   - Ensure date field is set
+   - Recent content ranks higher
+   - Keep dates accurate
+
+5. **Assign to Correct Region**
+   - Content is automatically filtered by region
+   - Verify content is in the right collection
+   - Contact developer if regional assignment needs changing
+
+#### "What if I see 'undefined' in search results?"
+
+**This has been fixed** in the latest version (v2.0.0).
+
+If you still see "undefined" appearing in summaries:
+1. Contact your development team
+2. Request a re-sync of the affected collection
+3. The fix ensures missing fields show blank instead of "undefined"
+
+---
+
 ## Summary
 
 This is an **enterprise-grade search indexing system** that:
@@ -1586,7 +2746,7 @@ Built with **Webflow API v2**, **Algolia Search**, and **Vercel Serverless Funct
 
 ---
 
-*Last Updated: January 26, 2025*
+*Last Updated: November 26, 2025*
 *Version: 2.0.0*
 *Total Items Indexed: 4,382+*
 *Cron Jobs: 10 (Daily Consolidated)*
