@@ -7,11 +7,12 @@ import { validateSyncRequest } from '../../lib/security/input-validator.js';
 export default async function handler(req, res) {
   const requestLogger = logger.setContext('FullSync');
 
-  if (req.method !== 'POST') {
+  // Allow GET for cron jobs, POST for manual triggers
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json(createApiResponse(
       false,
       {},
-      'Method not allowed',
+      'Method not allowed - Use POST or GET',
       405
     ).body);
   }
@@ -21,10 +22,6 @@ export default async function handler(req, res) {
   if (!authCheck.authenticated) {
     return authCheck.response;
   }
-
-  requestLogger.info('Full synchronization requested (authenticated)', {
-    authMethod: authCheck.method
-  });
 
   const envCheck = validateRequiredEnvVars(['WEBFLOW_API_TOKEN', 'WEBFLOW_SITE_ID']);
   if (!envCheck.success) {
@@ -37,8 +34,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // SECURITY: Validate and sanitize input
-    const validation = validateSyncRequest(req.body);
+    const input = req.method === 'GET' ? req.query : req.body;
+    const validation = validateSyncRequest(input);
     if (!validation.success) {
       return res.status(400).json(createApiResponse(
         false,
@@ -48,29 +45,15 @@ export default async function handler(req, res) {
       ).body);
     }
 
-    const {
-      region,
-      dryRun,
-      includeStatic,
-      includeCMS,
-      clearIndex
-    } = validation.data;
+    const { region, dryRun, includeStatic, includeCMS, clearIndex } = validation.data;
 
     // SECURITY: Extra warning for clearIndex operation
     if (clearIndex) {
-      requestLogger.warn('DANGEROUS OPERATION: clearIndex requested', {
-        authMethod: authCheck.method,
-        timestamp: new Date().toISOString()
-      });
+      requestLogger.warn('DANGEROUS: clearIndex requested');
     }
 
-    requestLogger.step('Starting full synchronization', {
-      region,
-      dryRun,
-      includeStatic,
-      includeCMS,
-      clearIndex
-    });
+    // Single start message
+    requestLogger.info(`CMS sync started: ${region || 'all regions'}`);
 
     const result = await algoliaIndexer.performFullSync({
       region,
@@ -94,12 +77,8 @@ export default async function handler(req, res) {
       message: result.message || 'Full sync completed'
     };
 
-    requestLogger.success('Full synchronization completed', {
-      totalPrepared: result.prepared || 0,
-      staticPages: result.staticPages || 0,
-      cmsItems: result.cmsItems || 0,
-      region: region || 'all'
-    });
+    // Single completion message with key stats
+    requestLogger.success(`Sync complete: ${result.cmsItems || 0} items indexed`);
 
     const response = createApiResponse(true, responseData);
     res.status(200).json(response.body);

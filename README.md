@@ -43,7 +43,7 @@ This system automatically indexes content from **34+ Webflow CMS collections** a
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| **Node.js** | 18+ | Runtime environment |
+| **Node.js** | 22.x | Runtime environment |
 | **Webflow API** | v2 | CMS and pages data source |
 | **Algolia** | v4.25+ | Search index and engine |
 | **Vercel** | Latest | Serverless hosting platform |
@@ -117,10 +117,10 @@ This system automatically indexes content from **34+ Webflow CMS collections** a
 
 ### Prerequisites
 
-1. **Node.js 18+** - [Download here](https://nodejs.org/)
+1. **Node.js 22.x** - [Download here](https://nodejs.org/)
 2. **Webflow Account** with API access
 3. **Algolia Account** with search index created
-4. **Vercel Account** (for deployment)
+4. **Vercel Account** with Pro plan (for deployment)
 5. **Git** installed on your machine
 
 ### Initial Setup
@@ -213,7 +213,7 @@ CMS_ANNUAL_DATA=your_collection_id_here
 # OPTIONAL - Performance Configuration
 # ============================================
 NODE_ENV=production
-LOG_LEVEL=info
+LOG_LEVEL=info  # Options: error, warn, info, debug (optimized for Vercel's 256-line limit)
 
 # ============================================
 # OPTIONAL - Regional Folder IDs (for static pages)
@@ -346,34 +346,38 @@ The project includes a `vercel.json` configuration file with serverless function
 ```json
 {
   "version": 2,
-  "name": "mizuho-algolia-search",
   "functions": {
     "api/**/*.js": {
-      "runtime": "@vercel/node",
       "maxDuration": 300
     }
   },
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info"
   },
   "crons": [
     {
-      "path": "/api/sync-static-pages",
-      "schedule": "0 * * * *"
+      "path": "/api/sync-static-pages-incremental",
+      "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/sync-collections?collectionId=americas-people",
-      "schedule": "21 * * * *"
+      "path": "/api/sync-static-pages-incremental?forceFullSync=true",
+      "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/sync/full?region=americas",
+      "schedule": "0 4 * * *"
     }
-    // ... 33 more cron jobs (see vercel.json for full list)
+    // ... 7 more regional cron jobs (see vercel.json for full list)
   ]
 }
 ```
 
 **Key settings:**
 - `maxDuration: 300` - Functions can run up to 5 minutes (required for large syncs)
-- `crons` - 35 automated hourly sync jobs (requires Vercel Pro plan)
-- `runtime: @vercel/node` - Node.js serverless runtime
+- `crons` - 10 automated daily sync jobs (requires Vercel Pro plan)
+- `LOG_LEVEL: info` - Optimized to stay under Vercel's 256-line log limit
+- Runtime auto-detected from package.json (Node.js 22.x)
 
 ### Post-Deployment
 
@@ -402,7 +406,7 @@ The project includes a `vercel.json` configuration file with serverless function
 
    Go to Vercel Dashboard → Your Project → **Cron Jobs** tab
 
-   You should see all 35 cron jobs listed with their schedules.
+   You should see all 10 cron jobs listed with their schedules.
 
 4. **Monitor First Cron Execution**
 
@@ -761,67 +765,54 @@ curl "https://your-project.vercel.app/api/search?q=sustainability&region=america
 
 ### Overview
 
-The system uses **35 Vercel cron jobs** to automatically sync content every hour:
+The system uses **10 Vercel cron jobs** to automatically sync content daily:
 
-- **1 job** for static pages (runs at `:00`, takes ~20 minutes)
-- **34 jobs** for CMS collections (staggered from `:21` to `:54`, each takes 30 sec - 2 min)
+- **2 jobs** for static pages (daily incremental + monthly full sync)
+- **8 jobs** for CMS collections (one per region, consolidated)
 
 **Key Benefits:**
 - ✅ No manual syncing needed
-- ✅ Content stays fresh (hourly updates)
+- ✅ Content stays fresh (daily updates)
+- ✅ Under Vercel's 20 cron job limit
 - ✅ Each job completes well within Vercel's 5-minute timeout
-- ✅ Jobs run in parallel (collections sync while pages sync)
-- ✅ One collection failing doesn't affect others
+- ✅ Regional syncs handle multiple collections efficiently
+- ✅ Optimized logging (under 150 lines per sync)
 
 ---
 
 ### Cron Schedule Design
 
 ```
-Hour:Minute  | Job                          | Duration | Items
--------------|------------------------------|----------|-------
-   :00       | Static Pages Sync            | ~20 min  | ~651 pages
-   :21       | americas-people              | ~1 min   | ~150 items
-   :22       | americas-events              | ~45 sec  | ~89 items
-   :23       | americas-insights            | ~1 min   | ~234 items
-   :24       | americas-awards              | ~30 sec  | ~58 items
-   :25       | americas-news                | ~2 min   | ~1,220 items
-   :26       | brazil-information           | ~30 sec  | ~45 items
-   :27       | beyond-the-obvious           | ~45 sec  | ~141 items
-   :28       | bank-news                    | ~1 min   | ~721 items
-   :29       | securities-news              | ~1 min   | ~312 items
-   :30       | trust-and-banking-news       | ~45 sec  | ~198 items
-   :31       | asia-pacific-insights        | ~30 sec  | ~67 items
-   :32       | asia-pacific-news            | ~45 sec  | ~123 items
-   :33       | malaysia-information         | ~20 sec  | ~12 items
-   :34       | hong-kong-information        | ~20 sec  | ~15 items
-   :35       | singapore-information        | ~20 sec  | ~18 items
-   :36       | taiwan-information           | ~20 sec  | ~9 items
-   :37       | gift-city-information        | ~20 sec  | ~8 items
-   :38       | japan-intl-cards             | ~20 sec  | ~23 items
-   :39       | emea-news                    | ~45 sec  | ~182 items
-   :40       | emea-events                  | ~30 sec  | ~45 items
-   :41       | emea-people                  | ~30 sec  | ~78 items
-   :42       | emea-leaders                 | ~20 sec  | ~34 items
-   :43       | france-information           | ~20 sec  | ~11 items
-   :44       | saudi-arabia-information     | ~20 sec  | ~7 items
-   :45       | russia-information           | ~20 sec  | ~6 items
-   :46       | global-news                  | ~1 min   | ~456 items
-   :47       | global-news-releases         | ~45 sec  | ~234 items
-   :48       | mizuho-global-services       | ~30 sec  | ~89 items
-   :49       | news-and-announcements       | ~45 sec  | ~167 items
-   :50       | digital-articles             | ~30 sec  | ~92 items
-   :51       | financial-statements-data    | ~20 sec  | ~34 items
-   :52       | basel-capital-data           | ~20 sec  | ~28 items
-   :53       | liquidity-data               | ~20 sec  | ~19 items
-   :54       | annual-data                  | ~20 sec  | ~24 items
+Time (UTC)  | Job                                    | Frequency | Duration
+------------|----------------------------------------|-----------|----------
+2:00 AM     | Static Pages Incremental Sync          | Daily     | ~5-10 min
+3:00 AM     | Static Pages Full Sync                 | Monthly   | ~10-15 min
+4:00 AM     | Americas Region CMS Sync               | Daily     | ~2-5 min
+5:00 AM     | EMEA Region CMS Sync                   | Daily     | ~2-4 min
+6:00 AM     | Asia Pacific Region CMS Sync           | Daily     | ~2-4 min
+7:00 AM     | Mizuho Bank Region CMS Sync            | Daily     | ~1-3 min
+8:00 AM     | Mizuho Securities Region CMS Sync      | Daily     | ~1-2 min
+9:00 AM     | Mizuho Trust Banking Region CMS Sync   | Daily     | ~1-2 min
+10:00 AM    | Japan Region CMS Sync                  | Daily     | ~1 min
+11:00 AM    | Worldwide Region CMS Sync              | Daily     | ~3-5 min
 ```
 
-**Design rationale:**
-- Static pages start at `:00` and run for ~20 minutes
-- Collections start at `:21` (after static pages have started)
-- Staggered 1 minute apart to avoid overlapping API calls
-- All jobs complete before next hour begins
+**What Each Regional Sync Does:**
+- **Americas**: Syncs 6 collections (people, events, insights, awards, news, brazil-info)
+- **EMEA**: Syncs 7 collections (news, people, events, leaders, france, saudi-arabia, russia)
+- **Asia Pacific**: Syncs 7 collections (insights, news, malaysia, hong-kong, singapore, taiwan, gift-city)
+- **Mizuho Bank**: Syncs bank-news collection
+- **Mizuho Securities**: Syncs securities-news collection
+- **Mizuho Trust Banking**: Syncs trust-and-banking-news collection
+- **Japan**: Syncs japan-intl-cards collection
+- **Worldwide**: Syncs 10 collections (beyond-the-obvious, global-news, news-releases, etc.)
+
+**Design Rationale:**
+- Runs during low-traffic hours (2:00-11:00 AM UTC)
+- Staggered 1 hour apart to avoid API rate limits
+- Static pages run first (incremental daily, full monthly on 1st)
+- Regional consolidation reduces cron job count from 36 to 10
+- All jobs complete well before business hours
 
 ---
 
@@ -834,31 +825,61 @@ The cron jobs are configured in [`vercel.json`](vercel.json):
   "version": 2,
   "functions": {
     "api/**/*.js": {
-      "runtime": "@vercel/node",
       "maxDuration": 300
     }
   },
+  "env": {
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info"
+  },
   "crons": [
     {
-      "path": "/api/sync-static-pages",
-      "schedule": "0 * * * *"
+      "path": "/api/sync-static-pages-incremental",
+      "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/sync-collections?collectionId=americas-people",
-      "schedule": "21 * * * *"
+      "path": "/api/sync-static-pages-incremental?forceFullSync=true",
+      "schedule": "0 3 1 * *"
     },
     {
-      "path": "/api/sync-collections?collectionId=americas-events",
-      "schedule": "22 * * * *"
+      "path": "/api/sync/full?region=americas",
+      "schedule": "0 4 * * *"
     },
-    // ... 32 more collections (see vercel.json for full list)
+    {
+      "path": "/api/sync/full?region=europe-middle-east-africa",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/sync/full?region=asia-pacific",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/sync/full?region=mizuho-bank",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/sync/full?region=mizuho-securities",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/sync/full?region=mizuho-trust-banking",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/sync/full?region=japan",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/sync/full?region=worldwide",
+      "schedule": "0 11 * * *"
+    }
   ]
 }
 ```
 
 **Schedule format:** [Cron expression](https://crontab.guru/)
-- `0 * * * *` = Every hour at minute 0
-- `21 * * * *` = Every hour at minute 21
+- `0 2 * * *` = Every day at 2:00 AM UTC
+- `0 3 1 * *` = Every 1st day of month at 3:00 AM UTC
 - etc.
 
 ---
@@ -1565,6 +1586,7 @@ Built with **Webflow API v2**, **Algolia Search**, and **Vercel Serverless Funct
 
 ---
 
-*Last Updated: October 25, 2025*
-*Version: 1.1.0*
+*Last Updated: January 26, 2025*
+*Version: 2.0.0*
 *Total Items Indexed: 4,382+*
+*Cron Jobs: 10 (Daily Consolidated)*
