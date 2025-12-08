@@ -17,19 +17,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get webhook secret from environment
-    const webhookSecret = process.env.WEBFLOW_WEBHOOK_SECRET;
-
-    if (!webhookSecret) {
-      requestLogger.error('WEBFLOW_WEBHOOK_SECRET not configured');
-      return res.status(500).json(createApiResponse(
-        false,
-        {},
-        'Webhook secret not configured',
-        500
-      ).body);
-    }
-
     // Extract headers
     const timestamp = req.headers['x-webflow-timestamp'];
     const signature = req.headers['x-webflow-signature'];
@@ -37,10 +24,40 @@ export default async function handler(req, res) {
     // Get raw body as string for signature validation
     const rawBody = JSON.stringify(req.body);
 
+    // Determine which secret to use based on trigger type
+    // First, try to get trigger type from payload
+    const triggerType = req.body?.triggerType;
+
+    // Map trigger types to environment variable names
+    const secretMap = {
+      'collection_item_created': process.env.WEBFLOW_WEBHOOK_SECRET_CREATE,
+      'collection_item_changed': process.env.WEBFLOW_WEBHOOK_SECRET_CHANGE,
+      'collection_item_published': process.env.WEBFLOW_WEBHOOK_SECRET_PUBLISH,
+      'collection_item_deleted': process.env.WEBFLOW_WEBHOOK_SECRET_DELETE,
+      'collection_item_unpublished': process.env.WEBFLOW_WEBHOOK_SECRET_UNPUBLISH
+    };
+
+    // Get the appropriate secret, fall back to legacy single secret
+    const webhookSecret = secretMap[triggerType] || process.env.WEBFLOW_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      requestLogger.error('Webhook secret not configured', {
+        triggerType,
+        availableSecrets: Object.keys(secretMap).filter(key => secretMap[key])
+      });
+      return res.status(500).json(createApiResponse(
+        false,
+        {},
+        'Webhook secret not configured for this trigger type',
+        500
+      ).body);
+    }
+
     // Validate webhook signature
     if (!validateWebhookSignature(timestamp, rawBody, signature, webhookSecret)) {
       requestLogger.warn('Webhook signature validation failed', {
         timestamp,
+        triggerType,
         hasSignature: !!signature
       });
       return res.status(401).json(createApiResponse(
@@ -51,7 +68,9 @@ export default async function handler(req, res) {
       ).body);
     }
 
-    requestLogger.info('Webhook signature validated successfully');
+    requestLogger.info('Webhook signature validated successfully', {
+      triggerType
+    });
 
     // Validate payload structure
     const validation = validateWebhookPayload(req.body);

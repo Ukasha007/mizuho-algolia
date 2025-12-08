@@ -1390,7 +1390,12 @@ curl "https://your-project.vercel.app/api/search?q=sustainability&region=america
 
 **Purpose:** Receive real-time updates from Webflow for the Beyond the Obvious collection. This endpoint handles automatic indexing when items are created, updated, deleted, or unpublished in Webflow.
 
-**Authentication:** Uses HMAC SHA-256 signature validation with the `WEBFLOW_WEBHOOK_SECRET` environment variable.
+**Authentication:** Uses HMAC SHA-256 signature validation. Each webhook type requires its own secret:
+- `WEBFLOW_WEBHOOK_SECRET_CREATE` - For collection_item_created events
+- `WEBFLOW_WEBHOOK_SECRET_CHANGE` - For collection_item_changed events
+- `WEBFLOW_WEBHOOK_SECRET_PUBLISH` - For collection_item_published events
+- `WEBFLOW_WEBHOOK_SECRET_DELETE` - For collection_item_deleted events
+- `WEBFLOW_WEBHOOK_SECRET_UNPUBLISH` - For collection_item_unpublished events
 
 **Supported Events:**
 - `collection_item_created` - Index newly created items
@@ -1437,15 +1442,16 @@ curl "https://your-project.vercel.app/api/search?q=sustainability&region=america
 
 **Setup Instructions:**
 
-1. Set the `WEBFLOW_WEBHOOK_SECRET` environment variable (OAuth client secret or webhook-specific secret)
-2. Create webhooks in Webflow for the Beyond the Obvious collection:
-   - Collection Item Created
-   - Collection Item Changed
-   - Collection Item Published
-   - Collection Item Deleted
-   - Collection Item Unpublished
-3. Point webhook URL to: `https://your-project.vercel.app/api/webhooks/webflow`
-4. Webflow will send real-time notifications when items change
+1. Set webhook secret environment variables (each webhook gets its own secret):
+   - `WEBFLOW_WEBHOOK_SECRET_CREATE`
+   - `WEBFLOW_WEBHOOK_SECRET_CHANGE`
+   - `WEBFLOW_WEBHOOK_SECRET_PUBLISH`
+   - `WEBFLOW_WEBHOOK_SECRET_DELETE`
+   - `WEBFLOW_WEBHOOK_SECRET_UNPUBLISH`
+2. Create 5 webhooks in Webflow dashboard (one for each trigger type)
+3. Point all webhook URLs to: `https://your-project.vercel.app/api/webhooks/webflow`
+4. Copy each webhook's unique secret to the corresponding environment variable
+5. See [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md) for detailed instructions
 
 **Notes:**
 - The Beyond the Obvious collection is excluded from cron jobs to avoid duplicate syncs

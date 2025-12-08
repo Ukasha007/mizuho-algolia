@@ -58,10 +58,14 @@ This guide explains how to set up Webflow webhooks for real-time synchronization
 Add the following to your `.env` file and Vercel environment variables:
 
 ```bash
-# Webflow Webhook Secret
-# For OAuth app webhooks: Use your OAuth client secret
-# For site token webhooks (April 2025+): Use webhook-specific secret
-WEBFLOW_WEBHOOK_SECRET=your_webhook_secret_here
+# Webflow Webhook Secrets (one per trigger type)
+# Each webhook created in Webflow dashboard gets its own unique secret
+# Copy these secrets from Webflow when creating each webhook
+WEBFLOW_WEBHOOK_SECRET_CREATE=your_create_webhook_secret_here
+WEBFLOW_WEBHOOK_SECRET_CHANGE=your_change_webhook_secret_here
+WEBFLOW_WEBHOOK_SECRET_PUBLISH=your_publish_webhook_secret_here
+WEBFLOW_WEBHOOK_SECRET_DELETE=your_delete_webhook_secret_here
+WEBFLOW_WEBHOOK_SECRET_UNPUBLISH=your_unpublish_webhook_secret_here
 
 # Existing variables (required)
 CMS_BEYOND_THE_OBVIOUS=your_collection_id_here
@@ -70,6 +74,11 @@ WEBFLOW_SITE_ID=your_site_id_here
 ALGOLIA_APP_ID=your_algolia_app_id
 ALGOLIA_API_KEY=your_algolia_admin_key
 ALGOLIA_INDEX_NAME=mizuho_content
+```
+
+**Note**: If using OAuth app to create webhooks programmatically, you can use the legacy single secret:
+```bash
+WEBFLOW_WEBHOOK_SECRET=your_oauth_client_secret
 ```
 
 ### Step 2: Deploy to Vercel
@@ -108,25 +117,57 @@ This script will:
 
 **Important**: This requires your `WEBFLOW_API_TOKEN` to have `webhook:write` scope.
 
-#### Option B: Using Webflow Dashboard
+#### Option B: Using Webflow Dashboard (Recommended)
 
 1. Go to **Site Settings** → **Integrations** → **Webhooks**
 2. Click **Create New Webhook**
-3. Configure each webhook:
-   - **Name**: Beyond the Obvious - Collection Item Created
-   - **Trigger**: Collection Item Created
-   - **Collection Filter**: Select **"Beyond the Obvious"** ⚠️ (Important!)
-   - **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
-   - **Secret**: Note the generated secret (copy to WEBFLOW_WEBHOOK_SECRET)
 
-4. Repeat for all event types:
-   - Collection Item Created
-   - Collection Item Changed
-   - Collection Item Published
-   - Collection Item Deleted
-   - Collection Item Unpublished
+**For each webhook type, follow these steps:**
 
-**⚠️ Critical**: Make sure to select the **Beyond the Obvious collection** in the filter, otherwise the webhook will trigger for ALL collections, which will cause issues.
+##### Webhook 1: Collection Item Created
+- **Name**: Beyond the Obvious - Collection Item Created
+- **Trigger Type**: Collection Item Created
+- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- Click **Create Webhook**
+- **⚠️ IMPORTANT**: Copy the generated secret immediately (you won't see it again!)
+- Save this as `WEBFLOW_WEBHOOK_SECRET_CREATE` in your `.env`
+
+##### Webhook 2: Collection Item Changed
+- **Name**: Beyond the Obvious - Collection Item Changed
+- **Trigger Type**: Collection Item Changed
+- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- Click **Create Webhook**
+- **⚠️ IMPORTANT**: Copy the generated secret
+- Save this as `WEBFLOW_WEBHOOK_SECRET_CHANGE` in your `.env`
+
+##### Webhook 3: Collection Item Published
+- **Name**: Beyond the Obvious - Collection Item Published
+- **Trigger Type**: Collection Item Published
+- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- Click **Create Webhook**
+- **⚠️ IMPORTANT**: Copy the generated secret
+- Save this as `WEBFLOW_WEBHOOK_SECRET_PUBLISH` in your `.env`
+
+##### Webhook 4: Collection Item Deleted
+- **Name**: Beyond the Obvious - Collection Item Deleted
+- **Trigger Type**: Collection Item Deleted
+- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- Click **Create Webhook**
+- **⚠️ IMPORTANT**: Copy the generated secret
+- Save this as `WEBFLOW_WEBHOOK_SECRET_DELETE` in your `.env`
+
+##### Webhook 5: Collection Item Unpublished
+- **Name**: Beyond the Obvious - Collection Item Unpublished
+- **Trigger Type**: Collection Item Unpublished
+- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- Click **Create Webhook**
+- **⚠️ IMPORTANT**: Copy the generated secret
+- Save this as `WEBFLOW_WEBHOOK_SECRET_UNPUBLISH` in your `.env`
+
+**Important Notes**:
+- Each webhook gets its own unique secret
+- Secrets are only shown once - copy them immediately!
+- Webflow does NOT support collection-level filtering at creation, so these webhooks will trigger for ALL CMS collections (our handler filters to only process Beyond the Obvious)
 
 #### Option C: Using Webflow API (Manual)
 

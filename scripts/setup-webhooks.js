@@ -86,15 +86,13 @@ async function createWebhook(triggerType, description) {
     console.log(`📌 Creating webhook: ${description}`);
     console.log(`   Trigger: ${triggerType}`);
 
+    // NOTE: Webflow doesn't support collection-level filtering at webhook creation.
+    // Our webhook handler filters by collection ID when receiving the payload.
     const response = await axios.post(
       `https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/webhooks`,
       {
         triggerType: triggerType,
-        url: webhookUrl,
-        // IMPORTANT: Filter to only trigger for Beyond the Obvious collection
-        filter: {
-          collectionIds: [BTO_COLLECTION_ID]
-        }
+        url: webhookUrl
       },
       {
         headers: {
