@@ -127,7 +127,7 @@ This script will:
 ##### Webhook 1: Collection Item Created
 - **Name**: Beyond the Obvious - Collection Item Created
 - **Trigger Type**: Collection Item Created
-- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- **URL**: `https://mizuho-algolia.vercel.app/api/webhooks/webflow`
 - Click **Create Webhook**
 - **⚠️ IMPORTANT**: Copy the generated secret immediately (you won't see it again!)
 - Save this as `WEBFLOW_WEBHOOK_SECRET_CREATE` in your `.env`
@@ -135,7 +135,7 @@ This script will:
 ##### Webhook 2: Collection Item Changed
 - **Name**: Beyond the Obvious - Collection Item Changed
 - **Trigger Type**: Collection Item Changed
-- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- **URL**: `https://mizuho-algolia.vercel.app/api/webhooks/webflow`
 - Click **Create Webhook**
 - **⚠️ IMPORTANT**: Copy the generated secret
 - Save this as `WEBFLOW_WEBHOOK_SECRET_CHANGE` in your `.env`
@@ -143,7 +143,7 @@ This script will:
 ##### Webhook 3: Collection Item Published
 - **Name**: Beyond the Obvious - Collection Item Published
 - **Trigger Type**: Collection Item Published
-- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- **URL**: `https://mizuho-algolia.vercel.app/api/webhooks/webflow`
 - Click **Create Webhook**
 - **⚠️ IMPORTANT**: Copy the generated secret
 - Save this as `WEBFLOW_WEBHOOK_SECRET_PUBLISH` in your `.env`
@@ -151,7 +151,7 @@ This script will:
 ##### Webhook 4: Collection Item Deleted
 - **Name**: Beyond the Obvious - Collection Item Deleted
 - **Trigger Type**: Collection Item Deleted
-- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- **URL**: `https://mizuho-algolia.vercel.app/api/webhooks/webflow`
 - Click **Create Webhook**
 - **⚠️ IMPORTANT**: Copy the generated secret
 - Save this as `WEBFLOW_WEBHOOK_SECRET_DELETE` in your `.env`
@@ -159,7 +159,7 @@ This script will:
 ##### Webhook 5: Collection Item Unpublished
 - **Name**: Beyond the Obvious - Collection Item Unpublished
 - **Trigger Type**: Collection Item Unpublished
-- **URL**: `https://your-project.vercel.app/api/webhooks/webflow`
+- **URL**: `https://mizuho-algolia.vercel.app/api/webhooks/webflow`
 - Click **Create Webhook**
 - **⚠️ IMPORTANT**: Copy the generated secret
 - Save this as `WEBFLOW_WEBHOOK_SECRET_UNPUBLISH` in your `.env`
@@ -180,7 +180,7 @@ curl -X POST https://api.webflow.com/v2/sites/{siteId}/webhooks \
   -H "Content-Type: application/json" \
   -d '{
     "triggerType": "collection_item_created",
-    "url": "https://your-project.vercel.app/api/webhooks/webflow",
+    "url": "https://mizuho-algolia.vercel.app/api/webhooks/webflow",
     "filter": {
       "collectionIds": ["YOUR_BTO_COLLECTION_ID"]
     }

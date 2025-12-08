@@ -3,14 +3,12 @@ import logger from '../../lib/core/logger.js';
 import { validateWebhookSignature, validateWebhookPayload } from '../../lib/webhooks/validator.js';
 import webhookProcessor from '../../lib/webhooks/processor.js';
 
-// Disable Vercel's automatic body parsing to get raw body for signature validation
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-// Helper to read raw body from request
 async function getRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -29,7 +27,6 @@ async function getRawBody(req) {
 export default async function handler(req, res) {
   const requestLogger = logger.setContext('WebflowWebhook');
 
-  // Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json(createApiResponse(
       false,
@@ -40,14 +37,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract headers
     const timestamp = req.headers['x-webflow-timestamp'];
     const signature = req.headers['x-webflow-signature'];
 
-    // Read raw body for signature validation (must be exact bytes sent by Webflow)
     const rawBody = await getRawBody(req);
 
-    // Parse body as JSON
     let body;
     try {
       body = JSON.parse(rawBody);
@@ -63,11 +57,9 @@ export default async function handler(req, res) {
       ).body);
     }
 
-    // Determine which secret to use based on trigger type
-    // First, try to get trigger type from payload
+
     const triggerType = body?.triggerType;
 
-    // Map trigger types to environment variable names
     const secretMap = {
       'collection_item_created': process.env.WEBFLOW_WEBHOOK_SECRET_CREATE,
       'collection_item_changed': process.env.WEBFLOW_WEBHOOK_SECRET_CHANGE,
@@ -76,7 +68,6 @@ export default async function handler(req, res) {
       'collection_item_unpublished': process.env.WEBFLOW_WEBHOOK_SECRET_UNPUBLISH
     };
 
-    // Get the appropriate secret, fall back to legacy single secret
     const webhookSecret = secretMap[triggerType] || process.env.WEBFLOW_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
@@ -92,7 +83,6 @@ export default async function handler(req, res) {
       ).body);
     }
 
-    // Validate webhook signature
     if (!validateWebhookSignature(timestamp, rawBody, signature, webhookSecret)) {
       requestLogger.warn('Webhook signature validation failed', {
         timestamp,
