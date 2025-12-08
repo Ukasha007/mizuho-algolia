@@ -3,6 +3,29 @@ import logger from '../../lib/core/logger.js';
 import { validateWebhookSignature, validateWebhookPayload } from '../../lib/webhooks/validator.js';
 import webhookProcessor from '../../lib/webhooks/processor.js';
 
+// Disable Vercel's automatic body parsing to get raw body for signature validation
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Helper to read raw body from request
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      resolve(data);
+    });
+    req.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
 export default async function handler(req, res) {
   const requestLogger = logger.setContext('WebflowWebhook');
 
@@ -21,12 +44,28 @@ export default async function handler(req, res) {
     const timestamp = req.headers['x-webflow-timestamp'];
     const signature = req.headers['x-webflow-signature'];
 
-    // Get raw body as string for signature validation
-    const rawBody = JSON.stringify(req.body);
+    // Read raw body for signature validation (must be exact bytes sent by Webflow)
+    const rawBody = await getRawBody(req);
+
+    // Parse body as JSON
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      requestLogger.error('Failed to parse webhook body as JSON', {
+        error: parseError.message
+      });
+      return res.status(400).json(createApiResponse(
+        false,
+        {},
+        'Invalid JSON body',
+        400
+      ).body);
+    }
 
     // Determine which secret to use based on trigger type
     // First, try to get trigger type from payload
-    const triggerType = req.body?.triggerType;
+    const triggerType = body?.triggerType;
 
     // Map trigger types to environment variable names
     const secretMap = {
@@ -73,7 +112,7 @@ export default async function handler(req, res) {
     });
 
     // Validate payload structure
-    const validation = validateWebhookPayload(req.body);
+    const validation = validateWebhookPayload(body);
 
     if (!validation.valid) {
       requestLogger.warn('Invalid webhook payload', {
