@@ -1384,6 +1384,75 @@ curl "https://your-project.vercel.app/api/search?q=sustainability&region=america
 }
 ```
 
+### Webflow Webhooks (Real-time Updates)
+
+**Endpoint:** `POST /api/webhooks/webflow`
+
+**Purpose:** Receive real-time updates from Webflow for the Beyond the Obvious collection. This endpoint handles automatic indexing when items are created, updated, deleted, or unpublished in Webflow.
+
+**Authentication:** Uses HMAC SHA-256 signature validation with the `WEBFLOW_WEBHOOK_SECRET` environment variable.
+
+**Supported Events:**
+- `collection_item_created` - Index newly created items
+- `collection_item_changed` - Update existing items
+- `collection_item_published` - Index published items
+- `collection_item_deleted` - Remove items from index
+- `collection_item_unpublished` - Remove items from index
+
+**Headers Required:**
+- `x-webflow-timestamp` - Unix timestamp (milliseconds) when webhook was sent
+- `x-webflow-signature` - HMAC SHA-256 signature for validation
+
+**Example Payload:**
+```json
+{
+  "triggerType": "collection_item_created",
+  "payload": {
+    "id": "item-id-here",
+    "siteId": "site-id-here",
+    "collectionId": "collection-id-here",
+    "fieldData": {
+      "name": "Item Name",
+      "slug": "item-slug"
+    },
+    "isDraft": false,
+    "isArchived": false
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "triggerType": "collection_item_created",
+    "itemId": "item-id-here",
+    "processed": true,
+    "action": "indexed",
+    "timestamp": "2025-01-21T00:00:00.000Z"
+  }
+}
+```
+
+**Setup Instructions:**
+
+1. Set the `WEBFLOW_WEBHOOK_SECRET` environment variable (OAuth client secret or webhook-specific secret)
+2. Create webhooks in Webflow for the Beyond the Obvious collection:
+   - Collection Item Created
+   - Collection Item Changed
+   - Collection Item Published
+   - Collection Item Deleted
+   - Collection Item Unpublished
+3. Point webhook URL to: `https://your-project.vercel.app/api/webhooks/webflow`
+4. Webflow will send real-time notifications when items change
+
+**Notes:**
+- The Beyond the Obvious collection is excluded from cron jobs to avoid duplicate syncs
+- Webhook requests must be received within 5 minutes of the timestamp (replay attack prevention)
+- Only published, non-archived items are indexed
+- Draft and archived items are automatically skipped
+
 ---
 
 ## Data Flow
