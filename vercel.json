@@ -93,39 +93,35 @@
       "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/sync-static-pages-incremental?forceFullSync=true",
-      "schedule": "0 3 1 * *"
-    },
-    {
-      "path": "/api/sync/full?region=americas",
+      "path": "/api/sync/full?region=americas&includeStatic=false",
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/sync/full?region=europe-middle-east-africa",
+      "path": "/api/sync/full?region=europe-middle-east-africa&includeStatic=false",
       "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/sync/full?region=asia-pacific",
+      "path": "/api/sync/full?region=asia-pacific&includeStatic=false",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/sync/full?region=mizuho-bank",
+      "path": "/api/sync/full?region=mizuho-bank&includeStatic=false",
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/sync/full?region=mizuho-securities",
+      "path": "/api/sync/full?region=mizuho-securities&includeStatic=false",
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/sync/full?region=mizuho-trust-banking",
+      "path": "/api/sync/full?region=mizuho-trust-banking&includeStatic=false",
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/sync/full?region=japan",
+      "path": "/api/sync/full?region=japan&includeStatic=false",
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/sync/full?region=worldwide",
+      "path": "/api/sync/full?region=worldwide&includeStatic=false",
       "schedule": "0 11 * * *"
     }
   ]

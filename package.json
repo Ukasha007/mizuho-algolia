@@ -13,6 +13,7 @@
     "sync-pages": "node scripts/sync-static-pages-only.js",
     "clear-index": "node scripts/clear-algolia-index.js",
     "clear-and-resync": "node scripts/clear-and-resync-pages.js",
+    "clear-and-resync-static-pages": "node scripts/clear-and-resync-static-pages.js",
     "update-settings": "node scripts/update-algolia-settings.js",
     "test-deletion-sync": "node scripts/test-deletion-sync.js",
     "vercel-build": "echo 'No build step needed for serverless functions'",

@@ -1470,7 +1470,7 @@ curl "https://your-project.vercel.app/api/search?q=sustainability&region=america
    ↓
 2. Fetch from Webflow API v2
    ├── Batch fetching (100 items/request)
-   ├── Rate limiting (60 requests/minute)
+   ├── Rate limiting (600 requests/minute)
    └── Automatic retries on failure
    ↓
 3. Process Each Item
